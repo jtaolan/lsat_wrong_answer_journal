@@ -598,17 +598,7 @@
 <script>
 const SUPABASE_URL = 'https://pwcrdxqvqsoiaahfudyv.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB3Y3JkeHF2cXNvaWFhaGZ1ZHl2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY5ODgzMDYsImV4cCI6MjA5MjU2NDMwNn0.eIU7vcUgUJEjtWAVng-MczZcNaKKkrb6e3p7ZpYG5FA';
-const authLock = (() => {
-  let queue = Promise.resolve();
-  return async (_name, _timeout, fn) => {
-    const task = queue.then(() => fn());
-    queue = task.then(() => {}, () => {});
-    return task;
-  };
-})();
-const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-  auth: { lock: authLock },
-});
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 function withTimeout(promise, ms, label) {
   return Promise.race([
