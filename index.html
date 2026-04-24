@@ -598,9 +598,24 @@
 <script>
 const SUPABASE_URL = 'https://pwcrdxqvqsoiaahfudyv.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB3Y3JkeHF2cXNvaWFhaGZ1ZHl2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY5ODgzMDYsImV4cCI6MjA5MjU2NDMwNn0.eIU7vcUgUJEjtWAVng-MczZcNaKKkrb6e3p7ZpYG5FA';
+const authLock = (() => {
+  let queue = Promise.resolve();
+  return async (_name, _timeout, fn) => {
+    const task = queue.then(() => fn());
+    queue = task.then(() => {}, () => {});
+    return task;
+  };
+})();
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-  auth: { lock: (_name, _timeout, fn) => fn() },
+  auth: { lock: authLock },
 });
+
+function withTimeout(promise, ms, label) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => setTimeout(() => reject(new Error(`${label} 超时 (${ms/1000}s)`)), ms)),
+  ]);
+}
 
 const SECTION_LABEL = { LR: 'LR', RC: 'RC' };
 const DIFF_LABEL = { level1: 'Level 1', level2: 'Level 2', level3: 'Level 3', level4: 'Level 4' };
@@ -812,28 +827,34 @@ function setSync(state, text) {
 
 async function upsertRemote(entry) {
   const { id, ...data } = entry;
-  const { error } = await sb.from('entries').upsert({ id, data, updated_at: new Date().toISOString() });
+  const { error } = await withTimeout(
+    sb.from('entries').upsert({ id, data, updated_at: new Date().toISOString() }),
+    15000,
+    '保存'
+  );
   if (error) throw error;
 }
 
 async function deleteRemote(id) {
-  const { error } = await sb.from('entries').delete().eq('id', id);
+  const { error } = await withTimeout(sb.from('entries').delete().eq('id', id), 15000, '删除');
   if (error) throw error;
 }
 
 async function loadEntries() {
   setSync('syncing', '加载中...');
-  const { data, error } = await sb
-    .from('entries')
-    .select('id, data, created_at, updated_at')
-    .order('created_at', { ascending: false });
-  if (error) {
+  try {
+    const { data, error } = await withTimeout(
+      sb.from('entries').select('id, data, created_at, updated_at').order('created_at', { ascending: false }),
+      15000,
+      '加载'
+    );
+    if (error) throw error;
+    entries = data.map(row => ({ id: row.id, ...row.data }));
+    setSync('', '已同步');
+  } catch (e) {
     setSync('error', '加载失败');
-    alert('加载错题失败: ' + error.message);
-    return;
+    alert('加载失败: ' + e.message);
   }
-  entries = data.map(row => ({ id: row.id, ...row.data }));
-  setSync('', '已同步');
 }
 
 document.getElementById('entryForm').addEventListener('submit', async ev => {
