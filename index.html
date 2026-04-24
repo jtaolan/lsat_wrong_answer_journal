@@ -1276,12 +1276,14 @@ function onSignedOut() {
   showAuth();
 }
 
-sb.auth.onAuthStateChange(async (event, session) => {
+sb.auth.onAuthStateChange((event, session) => {
   if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') {
     if (session) {
       onSignedIn(session.user);
-      await loadEntries();
-      render();
+      setTimeout(async () => {
+        await loadEntries();
+        render();
+      }, 0);
     } else if (event === 'INITIAL_SESSION') {
       onSignedOut();
     }
