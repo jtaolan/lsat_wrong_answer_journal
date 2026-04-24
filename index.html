@@ -1,0 +1,762 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>LSAT 错题本</title>
+<style>
+  :root {
+    --bg: #f7f7f5;
+    --panel: #ffffff;
+    --border: #e4e4e0;
+    --text: #1f2933;
+    --muted: #6b7280;
+    --accent: #2f5d9f;
+    --accent-soft: #eaf1fb;
+    --danger: #b9453f;
+    --success: #2f7d52;
+    --warn: #a36a1a;
+    --lr: #2f5d9f;
+    --rc: #2f7d52;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.55;
+  }
+  header {
+    background: var(--panel);
+    border-bottom: 1px solid var(--border);
+    padding: 18px 28px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+  header h1 {
+    margin: 0;
+    font-size: 20px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+  }
+  .stats {
+    display: flex;
+    gap: 16px;
+    font-size: 13px;
+    color: var(--muted);
+  }
+  .stats span b { color: var(--text); font-weight: 600; }
+  main {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 24px 28px 80px;
+    display: grid;
+    grid-template-columns: 340px 1fr;
+    gap: 24px;
+  }
+  @media (max-width: 900px) {
+    main { grid-template-columns: 1fr; }
+  }
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px;
+  }
+  .panel h2 {
+    margin: 0 0 14px;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+  label {
+    display: block;
+    font-size: 13px;
+    color: var(--muted);
+    margin-bottom: 4px;
+  }
+  input[type="text"], input[type="number"], input[type="date"], select, textarea {
+    width: 100%;
+    padding: 8px 10px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: 14px;
+    font-family: inherit;
+    background: #fff;
+    color: var(--text);
+    margin-bottom: 12px;
+  }
+  textarea { resize: vertical; min-height: 64px; }
+  input:focus, select:focus, textarea:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px var(--accent-soft);
+  }
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  button {
+    font-family: inherit;
+    font-size: 14px;
+    padding: 9px 14px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: #fff;
+    color: var(--text);
+    cursor: pointer;
+    transition: 0.15s;
+  }
+  button:hover { border-color: var(--accent); color: var(--accent); }
+  button.primary {
+    background: var(--accent);
+    color: #fff;
+    border-color: var(--accent);
+  }
+  button.primary:hover { background: #264e87; color: #fff; }
+  button.danger { color: var(--danger); }
+  button.danger:hover { background: #fbecea; border-color: var(--danger); color: var(--danger); }
+  .toolbar {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 16px;
+  }
+  .toolbar .left, .toolbar .right { display: flex; gap: 8px; flex-wrap: wrap; }
+  .search {
+    width: 220px;
+    padding: 7px 10px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: 14px;
+    margin: 0;
+  }
+  .list { display: flex; flex-direction: column; gap: 12px; }
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 18px;
+  }
+  .card-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px;
+    margin-bottom: 10px;
+    flex-wrap: wrap;
+  }
+  .tags { display: flex; gap: 6px; flex-wrap: wrap; }
+  .tag {
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: #eef0f2;
+    color: var(--muted);
+    letter-spacing: 0.03em;
+  }
+  .tag.section-LR { background: #eaf1fb; color: var(--lr); }
+  .tag.section-RC { background: #e8f3ec; color: var(--rc); }
+  .tag.diff-level1 { background: #e8f3ec; color: var(--success); }
+  .tag.diff-level2 { background: #eaf1fb; color: var(--accent); }
+  .tag.diff-level3 { background: #fbf1e0; color: var(--warn); }
+  .tag.diff-level4 { background: #fbecea; color: var(--danger); }
+  .card-actions { display: flex; gap: 6px; }
+  .card-actions button { padding: 4px 10px; font-size: 12px; }
+  .field { margin-top: 10px; }
+  .field-label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    margin-bottom: 2px;
+  }
+  .field-body {
+    white-space: pre-wrap;
+    word-break: break-word;
+    font-size: 14px;
+  }
+  .answer-line { display: flex; gap: 16px; font-size: 14px; margin-top: 8px; }
+  .answer-line .wrong { color: var(--danger); }
+  .answer-line .right { color: var(--success); }
+  .empty {
+    text-align: center;
+    color: var(--muted);
+    padding: 60px 20px;
+    font-size: 14px;
+  }
+  .meta {
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 8px;
+  }
+  .filter-group { margin-bottom: 12px; }
+  .chip-row { display: flex; gap: 6px; flex-wrap: wrap; }
+  .chip {
+    font-size: 12px;
+    padding: 4px 10px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: #fff;
+    cursor: pointer;
+    color: var(--muted);
+  }
+  .chip.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .row-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+  .image-previews { display: flex; gap: 8px; flex-wrap: wrap; margin: -4px 0 12px; }
+  .thumb {
+    position: relative;
+    width: 72px;
+    height: 72px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    overflow: hidden;
+    background: #f0f0ed;
+  }
+  .thumb img { width: 100%; height: 100%; object-fit: cover; display: block; cursor: zoom-in; }
+  .thumb .remove {
+    position: absolute;
+    top: 2px; right: 2px;
+    width: 18px; height: 18px;
+    border-radius: 50%;
+    border: none;
+    background: rgba(0,0,0,0.65);
+    color: #fff;
+    font-size: 12px;
+    line-height: 1;
+    padding: 0;
+    cursor: pointer;
+  }
+  .thumb .remove:hover { background: var(--danger); color: #fff; }
+  .card-images { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+  .card-images img {
+    max-width: 100%;
+    max-height: 240px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    cursor: zoom-in;
+  }
+  .lightbox {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.88);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    cursor: zoom-out;
+    padding: 20px;
+  }
+  .lightbox.open { display: flex; }
+  .lightbox img { max-width: 96%; max-height: 96%; box-shadow: 0 10px 40px rgba(0,0,0,0.4); }
+  details summary {
+    cursor: pointer;
+    font-size: 13px;
+    color: var(--muted);
+    padding: 4px 0;
+  }
+  details[open] summary { color: var(--text); }
+</style>
+</head>
+<body>
+<header>
+  <h1>LSAT 错题本</h1>
+  <div class="stats" id="stats"></div>
+</header>
+
+<main>
+  <aside>
+    <div class="panel" id="formPanel">
+      <h2 id="formTitle">新增错题</h2>
+      <form id="entryForm">
+        <input type="hidden" id="entryId" />
+        <div class="row">
+          <div>
+            <label>科目</label>
+            <select id="section" required>
+              <option value="LR">Logical Reasoning</option>
+              <option value="RC">Reading Comprehension</option>
+            </select>
+          </div>
+          <div>
+            <label>难度</label>
+            <select id="difficulty">
+              <option value="level1">Level 1</option>
+              <option value="level2" selected>Level 2</option>
+              <option value="level3">Level 3</option>
+              <option value="level4">Level 4</option>
+            </select>
+          </div>
+        </div>
+        <div class="row-3">
+          <div>
+            <label>PT / 来源</label>
+            <input type="text" id="source" placeholder="如 PT90" />
+          </div>
+          <div>
+            <label>Section</label>
+            <input type="text" id="sectionNum" placeholder="如 S2" />
+          </div>
+          <div>
+            <label>题号</label>
+            <input type="text" id="qnum" placeholder="如 Q14" />
+          </div>
+        </div>
+        <label>题型标签（逗号分隔）</label>
+        <input type="text" id="qtype" placeholder="如 Assumption, Flaw, Parallel" />
+
+        <label>题干 / 原题（支持粘贴或上传截图）</label>
+        <textarea id="question" placeholder="粘贴题干文本，或在此 Cmd+V 粘贴截图..."></textarea>
+        <div style="display:flex; gap:8px; align-items:center; margin:-4px 0 8px;">
+          <button type="button" id="uploadBtn">上传图片</button>
+          <input type="file" id="uploadInput" accept="image/*" multiple style="display:none;" />
+          <span style="font-size:12px; color:var(--muted);">支持多选，也可拖拽图片到此区域</span>
+        </div>
+        <div class="image-previews" id="imagePreviews"></div>
+
+        <div class="row">
+          <div>
+            <label>你的答案</label>
+            <input type="text" id="myAnswer" list="answerOptions" placeholder="A-E" autocomplete="off" />
+          </div>
+          <div>
+            <label>正确答案</label>
+            <input type="text" id="correctAnswer" list="answerOptions" placeholder="A-E" autocomplete="off" />
+          </div>
+        </div>
+        <datalist id="answerOptions">
+          <option value="A"></option>
+          <option value="B"></option>
+          <option value="C"></option>
+          <option value="D"></option>
+          <option value="E"></option>
+        </datalist>
+
+        <label>错因分析</label>
+        <textarea id="reason" placeholder="为什么错？陷阱在哪里？"></textarea>
+
+        <label>正确思路 / 反思</label>
+        <textarea id="reflection" placeholder="下次如何避免同样的错误"></textarea>
+
+        <div class="row">
+          <div>
+            <label>日期</label>
+            <input type="date" id="date" />
+          </div>
+          <div>
+            <label>用时（秒）</label>
+            <input type="number" id="time" min="0" placeholder="可选" />
+          </div>
+        </div>
+
+        <div style="display:flex; gap:8px; margin-top:6px;">
+          <button type="submit" class="primary" id="submitBtn">保存错题</button>
+          <button type="button" id="cancelBtn" style="display:none;">取消</button>
+        </div>
+      </form>
+    </div>
+
+    <div class="panel" style="margin-top:16px;">
+      <h2>数据</h2>
+      <div style="display:flex; gap:8px; flex-wrap:wrap;">
+        <button id="exportBtn">导出 JSON</button>
+        <button id="importBtn">导入 JSON</button>
+        <input type="file" id="importFile" accept="application/json" style="display:none;" />
+        <button id="clearBtn" class="danger">清空全部</button>
+      </div>
+      <p style="font-size:12px; color:var(--muted); margin:12px 0 0;">
+        所有数据保存在浏览器本地（localStorage），不上传到任何服务器。
+      </p>
+    </div>
+  </aside>
+
+  <section>
+    <div class="toolbar">
+      <div class="left">
+        <div class="chip-row" id="sectionFilter">
+          <button class="chip active" data-section="all">全部</button>
+          <button class="chip" data-section="LR">LR</button>
+          <button class="chip" data-section="RC">RC</button>
+        </div>
+      </div>
+      <div class="right">
+        <input type="text" id="search" class="search" placeholder="搜索题干、题型、错因..." />
+        <select id="sortBy" style="margin:0; width:auto;">
+          <option value="date-desc">最新优先</option>
+          <option value="date-asc">最早优先</option>
+          <option value="difficulty">按难度</option>
+          <option value="section">按科目</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="list" id="list"></div>
+  </section>
+</main>
+
+<div class="lightbox" id="lightbox"><img id="lightboxImg" alt="" /></div>
+
+<script>
+const STORAGE_KEY = 'lsat_mistakes_v1';
+const SECTION_LABEL = { LR: 'LR', RC: 'RC' };
+const DIFF_LABEL = { level1: 'Level 1', level2: 'Level 2', level3: 'Level 3', level4: 'Level 4' };
+const DIFF_ORDER = { level1: 1, level2: 2, level3: 3, level4: 4 };
+
+let entries = load();
+let currentSection = 'all';
+let currentSort = 'date-desc';
+let currentSearch = '';
+let editingId = null;
+let formImages = [];
+
+function load() {
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); }
+  catch { return []; }
+}
+function save() { localStorage.setItem(STORAGE_KEY, JSON.stringify(entries)); }
+function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 8); }
+function esc(s) { return (s ?? '').toString().replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+function todayStr() {
+  const d = new Date();
+  return d.toISOString().slice(0, 10);
+}
+
+function render() {
+  const list = document.getElementById('list');
+  let filtered = entries.slice();
+  if (currentSection !== 'all') filtered = filtered.filter(e => e.section === currentSection);
+  if (currentSearch) {
+    const q = currentSearch.toLowerCase();
+    filtered = filtered.filter(e =>
+      (e.question || '').toLowerCase().includes(q) ||
+      (e.qtype || '').toLowerCase().includes(q) ||
+      (e.reason || '').toLowerCase().includes(q) ||
+      (e.reflection || '').toLowerCase().includes(q) ||
+      (e.source || '').toLowerCase().includes(q) ||
+      (e.sectionNum || '').toLowerCase().includes(q) ||
+      (e.qnum || '').toLowerCase().includes(q)
+    );
+  }
+  filtered.sort((a, b) => {
+    if (currentSort === 'date-asc') return (a.date || '').localeCompare(b.date || '');
+    if (currentSort === 'date-desc') return (b.date || '').localeCompare(a.date || '');
+    if (currentSort === 'difficulty') return (DIFF_ORDER[b.difficulty] || 0) - (DIFF_ORDER[a.difficulty] || 0);
+    if (currentSort === 'section') return (a.section || '').localeCompare(b.section || '');
+    return 0;
+  });
+
+  if (filtered.length === 0) {
+    list.innerHTML = `<div class="empty">${entries.length === 0 ? '还没有错题。在左侧填写第一道错题开始复盘。' : '当前筛选下没有结果。'}</div>`;
+  } else {
+    list.innerHTML = filtered.map(e => `
+      <article class="card" data-id="${e.id}">
+        <div class="card-head">
+          <div class="tags">
+            <span class="tag section-${e.section}">${SECTION_LABEL[e.section] || e.section}</span>
+            <span class="tag diff-${e.difficulty}">${DIFF_LABEL[e.difficulty] || ''}</span>
+            ${renderRefTag(e)}
+            ${e.qtype ? e.qtype.split(',').map(t => t.trim()).filter(Boolean).map(t => `<span class="tag">${esc(t)}</span>`).join('') : ''}
+          </div>
+          <div class="card-actions">
+            <button data-action="edit">编辑</button>
+            <button data-action="delete" class="danger">删除</button>
+          </div>
+        </div>
+        ${e.question ? `<div class="field"><div class="field-label">题干</div><div class="field-body">${esc(e.question)}</div></div>` : ''}
+        ${e.images && e.images.length ? `<div class="card-images">${e.images.map((src, i) => `<img src="${src}" data-zoom="${i}" alt="截图" />`).join('')}</div>` : ''}
+        ${(e.myAnswer || e.correctAnswer) ? `<div class="answer-line">
+          ${e.myAnswer ? `<span class="wrong">我的答案: ${esc(e.myAnswer)}</span>` : ''}
+          ${e.correctAnswer ? `<span class="right">正确答案: ${esc(e.correctAnswer)}</span>` : ''}
+        </div>` : ''}
+        ${e.reason ? `<div class="field"><div class="field-label">错因分析</div><div class="field-body">${esc(e.reason)}</div></div>` : ''}
+        ${e.reflection ? `<details ${e.reflection.length < 160 ? 'open' : ''}><summary>正确思路 / 反思</summary><div class="field-body" style="margin-top:6px;">${esc(e.reflection)}</div></details>` : ''}
+        <div class="meta">${e.date || ''}${e.time ? ' · 用时 ' + e.time + 's' : ''}</div>
+      </article>
+    `).join('');
+  }
+
+  renderStats();
+}
+
+function renderRefTag(e) {
+  const parts = [e.source, e.sectionNum, e.qnum].map(s => (s || '').trim()).filter(Boolean);
+  return parts.length ? `<span class="tag">${esc(parts.join(' · '))}</span>` : '';
+}
+
+function renderImagePreviews() {
+  const el = document.getElementById('imagePreviews');
+  el.innerHTML = formImages.map((src, i) => `
+    <div class="thumb">
+      <img src="${src}" data-zoom-form="${i}" alt="" />
+      <button type="button" class="remove" data-remove="${i}" title="移除">×</button>
+    </div>
+  `).join('');
+}
+
+function renderStats() {
+  const total = entries.length;
+  const bySection = entries.reduce((a, e) => { a[e.section] = (a[e.section] || 0) + 1; return a; }, {});
+  const byDiff = entries.reduce((a, e) => { a[e.difficulty] = (a[e.difficulty] || 0) + 1; return a; }, {});
+  document.getElementById('stats').innerHTML = `
+    <span>总数 <b>${total}</b></span>
+    <span>LR <b>${bySection.LR || 0}</b></span>
+    <span>RC <b>${bySection.RC || 0}</b></span>
+    <span>L3+ <b>${(byDiff.level3 || 0) + (byDiff.level4 || 0)}</b></span>
+  `;
+}
+
+function resetForm() {
+  editingId = null;
+  document.getElementById('entryForm').reset();
+  document.getElementById('entryId').value = '';
+  document.getElementById('date').value = todayStr();
+  document.getElementById('formTitle').textContent = '新增错题';
+  document.getElementById('submitBtn').textContent = '保存错题';
+  document.getElementById('cancelBtn').style.display = 'none';
+  formImages = [];
+  renderImagePreviews();
+}
+
+function editEntry(id) {
+  const e = entries.find(x => x.id === id);
+  if (!e) return;
+  editingId = id;
+  document.getElementById('entryId').value = e.id;
+  document.getElementById('section').value = e.section || 'LR';
+  document.getElementById('difficulty').value = e.difficulty || 'level2';
+  document.getElementById('source').value = e.source || '';
+  document.getElementById('sectionNum').value = e.sectionNum || '';
+  document.getElementById('qnum').value = e.qnum || '';
+  document.getElementById('qtype').value = e.qtype || '';
+  document.getElementById('question').value = e.question || '';
+  document.getElementById('myAnswer').value = e.myAnswer || '';
+  document.getElementById('correctAnswer').value = e.correctAnswer || '';
+  document.getElementById('reason').value = e.reason || '';
+  document.getElementById('reflection').value = e.reflection || '';
+  document.getElementById('date').value = e.date || todayStr();
+  document.getElementById('time').value = e.time || '';
+  formImages = Array.isArray(e.images) ? e.images.slice() : [];
+  renderImagePreviews();
+  document.getElementById('formTitle').textContent = '编辑错题';
+  document.getElementById('submitBtn').textContent = '保存修改';
+  document.getElementById('cancelBtn').style.display = 'inline-block';
+  document.getElementById('formPanel').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+document.getElementById('entryForm').addEventListener('submit', ev => {
+  ev.preventDefault();
+  const data = {
+    id: editingId || uid(),
+    section: document.getElementById('section').value,
+    difficulty: document.getElementById('difficulty').value,
+    source: document.getElementById('source').value.trim(),
+    sectionNum: document.getElementById('sectionNum').value.trim(),
+    qnum: document.getElementById('qnum').value.trim(),
+    qtype: document.getElementById('qtype').value.trim(),
+    question: document.getElementById('question').value.trim(),
+    myAnswer: document.getElementById('myAnswer').value.trim().toUpperCase(),
+    correctAnswer: document.getElementById('correctAnswer').value.trim().toUpperCase(),
+    reason: document.getElementById('reason').value.trim(),
+    reflection: document.getElementById('reflection').value.trim(),
+    date: document.getElementById('date').value || todayStr(),
+    time: Number(document.getElementById('time').value) || null,
+    images: formImages.slice(),
+  };
+  if (editingId) {
+    const i = entries.findIndex(e => e.id === editingId);
+    if (i >= 0) entries[i] = data;
+  } else {
+    entries.unshift(data);
+  }
+  save();
+  resetForm();
+  render();
+});
+
+document.getElementById('cancelBtn').addEventListener('click', resetForm);
+
+document.getElementById('list').addEventListener('click', ev => {
+  const btn = ev.target.closest('button[data-action]');
+  if (!btn) return;
+  const card = btn.closest('.card');
+  const id = card?.dataset.id;
+  if (!id) return;
+  if (btn.dataset.action === 'edit') editEntry(id);
+  else if (btn.dataset.action === 'delete') {
+    if (confirm('确定删除这道错题吗？')) {
+      entries = entries.filter(e => e.id !== id);
+      save();
+      render();
+    }
+  }
+});
+
+document.getElementById('sectionFilter').addEventListener('click', ev => {
+  const chip = ev.target.closest('.chip');
+  if (!chip) return;
+  currentSection = chip.dataset.section;
+  document.querySelectorAll('#sectionFilter .chip').forEach(c => c.classList.toggle('active', c === chip));
+  render();
+});
+
+document.getElementById('search').addEventListener('input', ev => {
+  currentSearch = ev.target.value.trim();
+  render();
+});
+
+document.getElementById('sortBy').addEventListener('change', ev => {
+  currentSort = ev.target.value;
+  render();
+});
+
+document.getElementById('exportBtn').addEventListener('click', () => {
+  const blob = new Blob([JSON.stringify(entries, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `lsat-mistakes-${todayStr()}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+});
+
+document.getElementById('importBtn').addEventListener('click', () => {
+  document.getElementById('importFile').click();
+});
+document.getElementById('importFile').addEventListener('change', ev => {
+  const f = ev.target.files[0];
+  if (!f) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const data = JSON.parse(reader.result);
+      if (!Array.isArray(data)) throw new Error('格式错误');
+      if (confirm(`导入 ${data.length} 条错题？将合并到当前列表。`)) {
+        const existing = new Set(entries.map(e => e.id));
+        data.forEach(d => { if (!d.id || existing.has(d.id)) d.id = uid(); entries.unshift(d); });
+        save();
+        render();
+      }
+    } catch (e) {
+      alert('导入失败: ' + e.message);
+    }
+    ev.target.value = '';
+  };
+  reader.readAsText(f);
+});
+
+function addImageFromFile(file) {
+  if (!file || !file.type.startsWith('image/')) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    formImages.push(reader.result);
+    renderImagePreviews();
+  };
+  reader.readAsDataURL(file);
+}
+
+function handlePastedItems(items) {
+  if (!items) return false;
+  let handled = false;
+  for (const item of items) {
+    if (item.kind === 'file' && item.type.startsWith('image/')) {
+      addImageFromFile(item.getAsFile());
+      handled = true;
+    }
+  }
+  return handled;
+}
+
+document.getElementById('question').addEventListener('paste', ev => {
+  if (handlePastedItems(ev.clipboardData?.items)) ev.preventDefault();
+});
+
+document.addEventListener('paste', ev => {
+  const active = document.activeElement;
+  const inForm = active && active.closest && active.closest('#entryForm');
+  if (!inForm) return;
+  if (active.id === 'question') return;
+  handlePastedItems(ev.clipboardData?.items);
+});
+
+document.getElementById('uploadBtn').addEventListener('click', () => {
+  document.getElementById('uploadInput').click();
+});
+document.getElementById('uploadInput').addEventListener('change', ev => {
+  for (const file of ev.target.files) addImageFromFile(file);
+  ev.target.value = '';
+});
+
+const questionEl = document.getElementById('question');
+['dragenter', 'dragover'].forEach(type => {
+  questionEl.addEventListener(type, ev => {
+    if (ev.dataTransfer?.types?.includes('Files')) {
+      ev.preventDefault();
+      questionEl.style.borderColor = 'var(--accent)';
+    }
+  });
+});
+['dragleave', 'drop'].forEach(type => {
+  questionEl.addEventListener(type, () => { questionEl.style.borderColor = ''; });
+});
+questionEl.addEventListener('drop', ev => {
+  const files = ev.dataTransfer?.files;
+  if (files && files.length) {
+    ev.preventDefault();
+    for (const f of files) addImageFromFile(f);
+  }
+});
+
+document.getElementById('imagePreviews').addEventListener('click', ev => {
+  const rm = ev.target.closest('button[data-remove]');
+  if (rm) {
+    formImages.splice(Number(rm.dataset.remove), 1);
+    renderImagePreviews();
+    return;
+  }
+  const zoom = ev.target.closest('img[data-zoom-form]');
+  if (zoom) openLightbox(zoom.src);
+});
+
+document.getElementById('list').addEventListener('click', ev => {
+  const img = ev.target.closest('img[data-zoom]');
+  if (img) openLightbox(img.src);
+}, true);
+
+const lightbox = document.getElementById('lightbox');
+const lightboxImg = document.getElementById('lightboxImg');
+function openLightbox(src) {
+  lightboxImg.src = src;
+  lightbox.classList.add('open');
+}
+lightbox.addEventListener('click', () => {
+  lightbox.classList.remove('open');
+  lightboxImg.src = '';
+});
+document.addEventListener('keydown', ev => {
+  if (ev.key === 'Escape' && lightbox.classList.contains('open')) {
+    lightbox.classList.remove('open');
+    lightboxImg.src = '';
+  }
+});
+
+document.getElementById('clearBtn').addEventListener('click', () => {
+  if (entries.length === 0) return;
+  if (confirm(`确定清空全部 ${entries.length} 条错题？此操作不可恢复。`)) {
+    entries = [];
+    save();
+    render();
+  }
+});
+
+resetForm();
+render();
+</script>
+</body>
+</html>
