@@ -346,11 +346,45 @@
   }
   .sync-indicator.syncing { color: var(--warn); }
   .sync-indicator.error { color: var(--danger); }
+
+  .main-tabs {
+    display: flex;
+    gap: 4px;
+    background: #eef0f2;
+    padding: 4px;
+    border-radius: 8px;
+  }
+  .main-tabs button {
+    padding: 7px 18px;
+    border: none;
+    background: transparent;
+    color: var(--muted);
+    font-size: 14px;
+    font-weight: 500;
+    border-radius: 6px;
+    cursor: pointer;
+  }
+  .main-tabs button.active {
+    background: var(--panel);
+    color: var(--text);
+    box-shadow: 0 1px 2px rgba(0,0,0,0.06);
+  }
+  .view-vocab-only, .view-mistake-only { display: none; }
+  body[data-view="mistakes"] .view-mistake-only { display: block; }
+  body[data-view="mistakes"] .view-mistake-only.flex { display: flex; }
+  body[data-view="vocab"] .view-vocab-only { display: block; }
+  body[data-view="vocab"] .view-vocab-only.flex { display: flex; }
 </style>
 </head>
-<body>
+<body data-view="mistakes">
 <header>
-  <h1>LSAT 错题本</h1>
+  <div style="display:flex; align-items:center; gap:24px;">
+    <h1>LSAT 学习本</h1>
+    <div class="main-tabs" id="mainTabs">
+      <button data-view="mistakes" class="active" type="button">错题本</button>
+      <button data-view="vocab" type="button">生词本</button>
+    </div>
+  </div>
   <div style="display:flex; align-items:center; gap:16px; flex-wrap:wrap;">
     <div class="stats" id="stats"></div>
     <span class="sync-indicator" id="syncIndicator"></span>
@@ -383,7 +417,7 @@
 
 <main>
   <aside>
-    <div class="panel" id="formPanel">
+    <div class="panel view-mistake-only" id="formPanel">
       <h2 id="formTitle">新增错题</h2>
       <form id="entryForm">
         <input type="hidden" id="entryId" />
@@ -473,6 +507,40 @@
       </form>
     </div>
 
+    <div class="panel view-vocab-only" id="vocabFormPanel">
+      <h2 id="vocabFormTitle">新增生词</h2>
+      <form id="vocabForm">
+        <input type="hidden" id="vocabId" />
+        <label>单词</label>
+        <input type="text" id="vocabWord" required placeholder="如 perfunctory" autocomplete="off" />
+
+        <label>释义</label>
+        <textarea id="vocabDefinition" required placeholder="中文 / 英文 / 两者都行"></textarea>
+
+        <label>例句 / 出处</label>
+        <textarea id="vocabExample" placeholder="在哪看到的？原句是什么？"></textarea>
+
+        <label>笔记（词根、同义词、记忆法）</label>
+        <textarea id="vocabNotes" placeholder="可选"></textarea>
+
+        <div class="row">
+          <div>
+            <label>来源</label>
+            <input type="text" id="vocabSource" placeholder="如 PT90 LR" />
+          </div>
+          <div>
+            <label>日期</label>
+            <input type="date" id="vocabDate" />
+          </div>
+        </div>
+
+        <div style="display:flex; gap:8px; margin-top:6px;">
+          <button type="submit" class="primary" id="vocabSubmitBtn">保存生词</button>
+          <button type="button" id="vocabCancelBtn" style="display:none;">取消</button>
+        </div>
+      </form>
+    </div>
+
     <div class="panel" style="margin-top:16px;">
       <h2>数据</h2>
       <div style="display:flex; gap:8px; flex-wrap:wrap;">
@@ -488,7 +556,7 @@
   </aside>
 
   <section>
-    <div class="toolbar">
+    <div class="toolbar view-mistake-only flex">
       <div class="left">
         <div class="chip-row" id="sectionFilter">
           <button class="chip active" data-section="all">全部</button>
@@ -503,6 +571,19 @@
           <option value="date-asc">最早优先</option>
           <option value="difficulty">按难度</option>
           <option value="section">按科目</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="toolbar view-vocab-only flex">
+      <div class="left"></div>
+      <div class="right">
+        <input type="text" id="vocabSearch" class="search" placeholder="搜索单词、释义、例句..." />
+        <select id="vocabSortBy" style="margin:0; width:auto;">
+          <option value="date-desc">最新优先</option>
+          <option value="date-asc">最早优先</option>
+          <option value="word-asc">按单词 A-Z</option>
+          <option value="word-desc">按单词 Z-A</option>
         </select>
       </div>
     </div>
@@ -525,12 +606,16 @@ const DIFF_ORDER = { level1: 1, level2: 2, level3: 3, level4: 4 };
 
 let currentUser = null;
 let entries = [];
+let currentView = 'mistakes';
 let currentSection = 'all';
 let currentSort = 'date-desc';
 let currentSearch = '';
 let editingId = null;
 let formImages = [];
 let authMode = 'signin';
+let currentVocabSearch = '';
+let currentVocabSort = 'date-desc';
+let vocabEditingId = null;
 
 function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 8); }
 function esc(s) { return (s ?? '').toString().replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
@@ -540,9 +625,21 @@ function todayStr() {
   return d.toISOString().slice(0, 10);
 }
 
+function entryType(e) { return e.type === 'vocab' ? 'vocab' : 'mistake'; }
+
 function render() {
   const list = document.getElementById('list');
-  let filtered = entries.slice();
+  if (currentView === 'vocab') {
+    renderVocab(list);
+  } else {
+    renderMistakes(list);
+  }
+  renderStats();
+}
+
+function renderMistakes(list) {
+  let filtered = entries.filter(e => entryType(e) === 'mistake');
+  const totalMistakes = filtered.length;
   if (currentSection !== 'all') filtered = filtered.filter(e => e.section === currentSection);
   if (currentSearch) {
     const q = currentSearch.toLowerCase();
@@ -565,36 +662,79 @@ function render() {
   });
 
   if (filtered.length === 0) {
-    list.innerHTML = `<div class="empty">${entries.length === 0 ? '还没有错题。在左侧填写第一道错题开始复盘。' : '当前筛选下没有结果。'}</div>`;
-  } else {
-    list.innerHTML = filtered.map(e => `
-      <article class="card" data-id="${e.id}">
-        <div class="card-head">
-          <div class="tags">
-            <span class="tag section-${e.section}">${SECTION_LABEL[e.section] || e.section}</span>
-            <span class="tag diff-${e.difficulty}">${DIFF_LABEL[e.difficulty] || ''}</span>
-            ${renderRefTag(e)}
-            ${e.qtype ? e.qtype.split(',').map(t => t.trim()).filter(Boolean).map(t => `<span class="tag">${esc(t)}</span>`).join('') : ''}
-          </div>
-          <div class="card-actions">
-            <button data-action="edit">编辑</button>
-            <button data-action="delete" class="danger">删除</button>
-          </div>
-        </div>
-        ${e.question ? `<div class="field"><div class="field-label">题干</div><div class="field-body">${esc(e.question)}</div></div>` : ''}
-        ${e.images && e.images.length ? `<div class="card-images">${e.images.map((src, i) => `<img src="${src}" data-zoom="${i}" alt="截图" />`).join('')}</div>` : ''}
-        ${(e.myAnswer || e.correctAnswer) ? `<div class="answer-line">
-          ${e.myAnswer ? `<span class="wrong">我的答案: ${esc(e.myAnswer)}</span>` : ''}
-          ${e.correctAnswer ? `<span class="right">正确答案: ${esc(e.correctAnswer)}</span>` : ''}
-        </div>` : ''}
-        ${e.reason ? `<div class="field"><div class="field-label">错因分析</div><div class="field-body">${esc(e.reason)}</div></div>` : ''}
-        ${e.reflection ? `<details ${e.reflection.length < 160 ? 'open' : ''}><summary>正确思路 / 反思</summary><div class="field-body" style="margin-top:6px;">${esc(e.reflection)}</div></details>` : ''}
-        <div class="meta">${e.date || ''}${e.time ? ' · 用时 ' + e.time + 's' : ''}</div>
-      </article>
-    `).join('');
+    list.innerHTML = `<div class="empty">${totalMistakes === 0 ? '还没有错题。在左侧填写第一道错题开始复盘。' : '当前筛选下没有结果。'}</div>`;
+    return;
   }
+  list.innerHTML = filtered.map(e => `
+    <article class="card" data-id="${e.id}">
+      <div class="card-head">
+        <div class="tags">
+          <span class="tag section-${e.section}">${SECTION_LABEL[e.section] || e.section}</span>
+          <span class="tag diff-${e.difficulty}">${DIFF_LABEL[e.difficulty] || ''}</span>
+          ${renderRefTag(e)}
+          ${e.qtype ? e.qtype.split(',').map(t => t.trim()).filter(Boolean).map(t => `<span class="tag">${esc(t)}</span>`).join('') : ''}
+        </div>
+        <div class="card-actions">
+          <button data-action="edit">编辑</button>
+          <button data-action="delete" class="danger">删除</button>
+        </div>
+      </div>
+      ${e.question ? `<div class="field"><div class="field-label">题干</div><div class="field-body">${esc(e.question)}</div></div>` : ''}
+      ${e.images && e.images.length ? `<div class="card-images">${e.images.map((src, i) => `<img src="${src}" data-zoom="${i}" alt="截图" />`).join('')}</div>` : ''}
+      ${(e.myAnswer || e.correctAnswer) ? `<div class="answer-line">
+        ${e.myAnswer ? `<span class="wrong">我的答案: ${esc(e.myAnswer)}</span>` : ''}
+        ${e.correctAnswer ? `<span class="right">正确答案: ${esc(e.correctAnswer)}</span>` : ''}
+      </div>` : ''}
+      ${e.reason ? `<div class="field"><div class="field-label">错因分析</div><div class="field-body">${esc(e.reason)}</div></div>` : ''}
+      ${e.reflection ? `<details ${e.reflection.length < 160 ? 'open' : ''}><summary>正确思路 / 反思</summary><div class="field-body" style="margin-top:6px;">${esc(e.reflection)}</div></details>` : ''}
+      <div class="meta">${e.date || ''}${e.time ? ' · 用时 ' + e.time + 's' : ''}</div>
+    </article>
+  `).join('');
+}
 
-  renderStats();
+function renderVocab(list) {
+  let filtered = entries.filter(e => entryType(e) === 'vocab');
+  const totalVocab = filtered.length;
+  if (currentVocabSearch) {
+    const q = currentVocabSearch.toLowerCase();
+    filtered = filtered.filter(e =>
+      (e.word || '').toLowerCase().includes(q) ||
+      (e.definition || '').toLowerCase().includes(q) ||
+      (e.example || '').toLowerCase().includes(q) ||
+      (e.notes || '').toLowerCase().includes(q) ||
+      (e.source || '').toLowerCase().includes(q)
+    );
+  }
+  filtered.sort((a, b) => {
+    if (currentVocabSort === 'date-asc') return (a.date || '').localeCompare(b.date || '');
+    if (currentVocabSort === 'date-desc') return (b.date || '').localeCompare(a.date || '');
+    if (currentVocabSort === 'word-asc') return (a.word || '').toLowerCase().localeCompare((b.word || '').toLowerCase());
+    if (currentVocabSort === 'word-desc') return (b.word || '').toLowerCase().localeCompare((a.word || '').toLowerCase());
+    return 0;
+  });
+
+  if (filtered.length === 0) {
+    list.innerHTML = `<div class="empty">${totalVocab === 0 ? '还没有生词。在左侧录入你遇到的第一个单词。' : '当前搜索下没有结果。'}</div>`;
+    return;
+  }
+  list.innerHTML = filtered.map(e => `
+    <article class="card" data-id="${e.id}">
+      <div class="card-head">
+        <div class="tags">
+          <span class="tag" style="background:#f1eaf7; color:#7a4bb0; font-weight:600; font-size:14px; padding:3px 10px;">${esc(e.word || '')}</span>
+          ${e.source ? `<span class="tag">${esc(e.source)}</span>` : ''}
+        </div>
+        <div class="card-actions">
+          <button data-action="edit">编辑</button>
+          <button data-action="delete" class="danger">删除</button>
+        </div>
+      </div>
+      ${e.definition ? `<div class="field"><div class="field-label">释义</div><div class="field-body">${esc(e.definition)}</div></div>` : ''}
+      ${e.example ? `<div class="field"><div class="field-label">例句 / 出处</div><div class="field-body">${esc(e.example)}</div></div>` : ''}
+      ${e.notes ? `<div class="field"><div class="field-label">笔记</div><div class="field-body">${esc(e.notes)}</div></div>` : ''}
+      <div class="meta">${e.date || ''}</div>
+    </article>
+  `).join('');
 }
 
 function renderRefTag(e) {
@@ -613,15 +753,15 @@ function renderImagePreviews() {
 }
 
 function renderStats() {
-  const total = entries.length;
-  const bySection = entries.reduce((a, e) => { a[e.section] = (a[e.section] || 0) + 1; return a; }, {});
-  const byDiff = entries.reduce((a, e) => { a[e.difficulty] = (a[e.difficulty] || 0) + 1; return a; }, {});
-  document.getElementById('stats').innerHTML = `
-    <span>总数 <b>${total}</b></span>
-    <span>LR <b>${bySection.LR || 0}</b></span>
-    <span>RC <b>${bySection.RC || 0}</b></span>
-    <span>L3+ <b>${(byDiff.level3 || 0) + (byDiff.level4 || 0)}</b></span>
-  `;
+  const mistakes = entries.filter(e => entryType(e) === 'mistake');
+  const vocab = entries.filter(e => entryType(e) === 'vocab');
+  const bySection = mistakes.reduce((a, e) => { a[e.section] = (a[e.section] || 0) + 1; return a; }, {});
+  const byDiff = mistakes.reduce((a, e) => { a[e.difficulty] = (a[e.difficulty] || 0) + 1; return a; }, {});
+  let html = `<span>错题 <b>${mistakes.length}</b></span><span>生词 <b>${vocab.length}</b></span>`;
+  if (currentView === 'mistakes') {
+    html += `<span>LR <b>${bySection.LR || 0}</b></span><span>RC <b>${bySection.RC || 0}</b></span><span>L3+ <b>${(byDiff.level3 || 0) + (byDiff.level4 || 0)}</b></span>`;
+  }
+  document.getElementById('stats').innerHTML = html;
 }
 
 function resetForm() {
@@ -699,6 +839,7 @@ document.getElementById('entryForm').addEventListener('submit', async ev => {
   if (!currentUser) return;
   const data = {
     id: editingId || uid(),
+    type: 'mistake',
     section: document.getElementById('section').value,
     difficulty: document.getElementById('difficulty').value,
     source: document.getElementById('source').value.trim(),
@@ -747,9 +888,12 @@ document.getElementById('list').addEventListener('click', async ev => {
   const card = btn.closest('.card');
   const id = card?.dataset.id;
   if (!id) return;
-  if (btn.dataset.action === 'edit') editEntry(id);
-  else if (btn.dataset.action === 'delete') {
-    if (!confirm('确定删除这道错题吗？')) return;
+  const entry = entries.find(e => e.id === id);
+  const isVocab = entry && entryType(entry) === 'vocab';
+  if (btn.dataset.action === 'edit') {
+    if (isVocab) editVocab(id); else editEntry(id);
+  } else if (btn.dataset.action === 'delete') {
+    if (!confirm(isVocab ? '确定删除这个生词吗？' : '确定删除这道错题吗？')) return;
     setSync('syncing', '删除中...');
     try {
       await deleteRemote(id);
@@ -761,6 +905,100 @@ document.getElementById('list').addEventListener('click', async ev => {
       alert('删除失败: ' + e.message);
     }
   }
+});
+
+// ===== Vocab form =====
+function resetVocabForm() {
+  vocabEditingId = null;
+  document.getElementById('vocabForm').reset();
+  document.getElementById('vocabId').value = '';
+  document.getElementById('vocabDate').value = todayStr();
+  document.getElementById('vocabFormTitle').textContent = '新增生词';
+  document.getElementById('vocabSubmitBtn').textContent = '保存生词';
+  document.getElementById('vocabCancelBtn').style.display = 'none';
+}
+
+function editVocab(id) {
+  const e = entries.find(x => x.id === id);
+  if (!e) return;
+  vocabEditingId = id;
+  document.getElementById('vocabId').value = e.id;
+  document.getElementById('vocabWord').value = e.word || '';
+  document.getElementById('vocabDefinition').value = e.definition || '';
+  document.getElementById('vocabExample').value = e.example || '';
+  document.getElementById('vocabNotes').value = e.notes || '';
+  document.getElementById('vocabSource').value = e.source || '';
+  document.getElementById('vocabDate').value = e.date || todayStr();
+  document.getElementById('vocabFormTitle').textContent = '编辑生词';
+  document.getElementById('vocabSubmitBtn').textContent = '保存修改';
+  document.getElementById('vocabCancelBtn').style.display = 'inline-block';
+  document.getElementById('vocabFormPanel').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+document.getElementById('vocabForm').addEventListener('submit', async ev => {
+  ev.preventDefault();
+  if (!currentUser) return;
+  const data = {
+    id: vocabEditingId || uid(),
+    type: 'vocab',
+    word: document.getElementById('vocabWord').value.trim(),
+    definition: document.getElementById('vocabDefinition').value.trim(),
+    example: document.getElementById('vocabExample').value.trim(),
+    notes: document.getElementById('vocabNotes').value.trim(),
+    source: document.getElementById('vocabSource').value.trim(),
+    date: document.getElementById('vocabDate').value || todayStr(),
+  };
+  const btn = document.getElementById('vocabSubmitBtn');
+  const label = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = '保存中...';
+  setSync('syncing', '保存中...');
+  try {
+    await upsertRemote(data);
+    if (vocabEditingId) {
+      const i = entries.findIndex(e => e.id === vocabEditingId);
+      if (i >= 0) entries[i] = data;
+    } else {
+      entries.unshift(data);
+    }
+    resetVocabForm();
+    render();
+    setSync('', '已同步');
+  } catch (e) {
+    setSync('error', '保存失败');
+    alert('保存到云端失败: ' + e.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = label;
+  }
+});
+
+document.getElementById('vocabCancelBtn').addEventListener('click', resetVocabForm);
+
+document.getElementById('vocabSearch').addEventListener('input', ev => {
+  currentVocabSearch = ev.target.value.trim();
+  render();
+});
+
+document.getElementById('vocabSortBy').addEventListener('change', ev => {
+  currentVocabSort = ev.target.value;
+  render();
+});
+
+// ===== View tabs =====
+document.getElementById('mainTabs').addEventListener('click', ev => {
+  const btn = ev.target.closest('button[data-view]');
+  if (!btn) return;
+  const view = btn.dataset.view;
+  if (view === currentView) return;
+  currentView = view;
+  document.body.setAttribute('data-view', view);
+  document.querySelectorAll('#mainTabs button').forEach(b =>
+    b.classList.toggle('active', b.dataset.view === view)
+  );
+  if (view === 'mistakes') resetVocabForm();
+  else resetForm();
+  render();
 });
 
 document.getElementById('sectionFilter').addEventListener('click', ev => {
@@ -923,13 +1161,17 @@ document.addEventListener('keydown', ev => {
 });
 
 document.getElementById('clearBtn').addEventListener('click', async () => {
-  if (entries.length === 0) return;
-  if (!confirm(`确定清空全部 ${entries.length} 条错题？此操作不可恢复，云端数据也会一并删除。`)) return;
+  const isVocab = currentView === 'vocab';
+  const label = isVocab ? '生词' : '错题';
+  const target = entries.filter(e => entryType(e) === (isVocab ? 'vocab' : 'mistake'));
+  if (target.length === 0) return;
+  if (!confirm(`确定清空当前 ${target.length} 条${label}？此操作不可恢复，云端数据也会一并删除。`)) return;
   setSync('syncing', '清空中...');
   try {
-    const { error } = await sb.from('entries').delete().eq('user_id', currentUser.id);
+    const ids = target.map(e => e.id);
+    const { error } = await sb.from('entries').delete().in('id', ids);
     if (error) throw error;
-    entries = [];
+    entries = entries.filter(e => !ids.includes(e.id));
     render();
     setSync('', '已同步');
   } catch (e) {
@@ -1038,6 +1280,7 @@ sb.auth.onAuthStateChange(async (event, session) => {
 });
 
 resetForm();
+resetVocabForm();
 render();
 </script>
 </body>
